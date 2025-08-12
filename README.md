@@ -6,6 +6,7 @@
 /embedding/ -> embedding scripts
 
 inProcess EF - DONE
+
 server, remote EF - TO DO 
 
 * Chunking 
