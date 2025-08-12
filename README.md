@@ -19,5 +19,5 @@ testing chunking algorithms with qwen model then using best fit
 
 /collections/chunkingtest.py -> chunking test scripts
 
-https://github.com/brandonstarxel/chunking_evaluation
+https://github.com/brandonstarxel/chunking_evaluation -- DONT FORGET TO INSTALL VIA PIP IN COMMAND LINE, WILL BE ADDED TO pyproject
 
