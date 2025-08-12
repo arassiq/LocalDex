@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from chunking_evaluation import BaseChunker, GeneralEvaluation
 from chunking_evaluation.chunking import ClusterSemanticChunker
 from chromadb.utils import embedding_functions
@@ -11,7 +14,8 @@ from chunking_evaluation.utils import openai_token_count
 from chromadb.utils import embedding_functions
 import pandas as pd
 import http.client
-import os
+
+
 
 from embeddings import QwenEmbeddingFunction
 
@@ -39,6 +43,32 @@ chunkers.extend(
         ClusterSemanticChunker(embedding_function=ef, max_chunk_size=200, length_function=openai_token_count)
     ]
 )
+
+# Initialize evaluation
+evaluation = GeneralEvaluation()
+
+results = []
+
+# Initialize an empty DataFrame
+df = pd.DataFrame()
+
+# Display the DataFrame
+
+
+for chunker in chunkers:
+    result = evaluation.run(chunker, ef, retrieve=5)
+    del result['corpora_scores']  # Remove detailed scores for brevity
+    chunk_size = chunker._chunk_size if hasattr(chunker, '_chunk_size') else 0
+    chunk_overlap = chunker._chunk_overlap if hasattr(chunker, '_chunk_overlap') else 0
+    result['chunker'] = chunker.__class__.__name__ + f"_{chunk_size}_{chunk_overlap}"
+    results.append(result)
+
+    # Update the DataFrame
+    df = pd.DataFrame(results)
+
+df
+
+'''
 
 def download_text(book_id, file_name, directory):
     conn = http.client.HTTPSConnection("www.gutenberg.org")
@@ -74,3 +104,5 @@ directory = "corpora"
 # Download each book
 for book_id, file_name in books.items():
     download_text(book_id, file_name, directory)
+
+'''
