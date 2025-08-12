@@ -1,0 +1,13 @@
+torch
+
+torchvision
+
+chromadb
+
+transformers>=4.51.0
+
+sentence-transformers>=2.7.0
+
+accelerate
+
+"git+https://github.com/brandonstarxel/chunking_evaluation.git"
