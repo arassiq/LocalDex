@@ -21,3 +21,5 @@ testing chunking algorithms with qwen model then using best fit
 
 https://github.com/brandonstarxel/chunking_evaluation -- DONT FORGET TO INSTALL VIA PIP IN COMMAND LINE, WILL BE ADDED TO pyproject
 
+
+langchain_experemental.text_splitter.py -> line 203 > embed func to __call__ (native to our chroma class)

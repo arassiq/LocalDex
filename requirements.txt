@@ -10,6 +10,6 @@ sentence-transformers>=2.7.0
 
 accelerate
 
+langchain_exp
 
-
-langchain_text_splitters
+fastapi

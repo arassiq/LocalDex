@@ -1,6 +1,6 @@
 import chromadb
 from chromadb.config import Settings
-from embeddings.textEmbedding import QwenEmbeddingFunction
+from embeddings import QwenEmbeddingFunction
 
 PERSISTENT_DIR = "path/to/dir"
 
