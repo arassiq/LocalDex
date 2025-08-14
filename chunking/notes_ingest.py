@@ -11,6 +11,8 @@ import re
 
 import hashlib
 
+from tree_sitter_language_pack import get_parser
+
 from embeddings import QwenEmbeddingFunction
 
 from langchain_experimental.text_splitter import SemanticChunker
@@ -22,7 +24,6 @@ import torch
 with open("/Users/aaronrassiq/Desktop/LocalDex/chunking/text_samples/the_adventures_of_sherlock_holmes.txt") as f:
     sherlockHolmes = f.read()
 
-text_splitter = SemanticChunker(ef)
 
 class noteChunker:
     def __init__(
@@ -60,31 +61,82 @@ class noteChunker:
     def id_maker(self, text_content):
         return hashlib.md5(text_content.encode('utf-8')).hexdigest()
 
-    def __call__(self, text):
+    def __call__(self, path: str):
         txt = re.sub(r'[ \t]+', ' ', txt)
         txt = re.sub(r'\n{3,}', '\n\n', txt)
         txt = txt.strip()
 
-        chunks = self.splitter.split_text(text)
-        ids, docs, metas = [], [], []
-        for i, ch in enumerate(chunk=s):
-            ids.append(self.id_maker(ch))  # md5(path:i:chunk)
-            docs.append(ch)
-            metas.append({"source_path": path, "chunk_id": i})
+        chunks = self.splitter.split_text(txt)
+        recs = []
 
-        #TODO: needed, can move into the actual collections class?    
-        for i in range(0, len(ids), batch):
-            collection.upsert(ids=ids[i:i+batch],
-                            documents=docs[i:i+batch],
-                            metadatas=metas[i:i+batch])
+        for i, ch in enumerate(chunks):
+
+            text = ch
+            cid = hashlib.md5(f"{path}:{i}:{text}".encode()).hexdigest()
+            recs.append((cid, text, {
+                "source_path": os.path.abspath(path),
+                "chunk_id": i,
+                "span": None,                          # inclusive line range
+                "chunk_type": "semantic-text"
+            }))
+
+        return recs
 
 class codeChunker:
+    EXT_TO_LANG = {
+        ".py": "python", ".rs": "rust", ".ts": "typescript", ".js": "javascript",
+        ".java": "java", ".go": "go", ".cpp": "cpp", ".c": "c"
+    }
     '''
     
     structure-aware splitter (functions/classes) -> semantic merge.
     
     '''
-    def __init__(
-            self,
-            asdfasdfasdfasdfasdfasdgasdfasdfasdf
-            ) -> None:
+    def __init__(self, max_tokens: int = 500) -> None:
+        self.max_tokens = max_tokens
+        
+
+    def approx_tokens(s: str) -> int: return max(1, len(s)//4)
+
+    def __call__(self, path: str):
+        ext = os.path.splitext(path)[1].lower()
+        lang = self.EXT_TO_LANG.get(ext)
+        if not lang:
+            return []
+        parser = get_parser(lang)
+        code = open(path, "rb").read()
+        tree = parser.parse(code)
+        root = tree.root_node
+        lines = code.splitlines()
+
+        def blocks(node):
+            for ch in node.children:
+                if ch.type in {"function_definition","function_declaration","class_definition",
+                            "method_definition","struct_item","impl_item"}:
+                    yield ch
+                yield from blocks(ch)
+
+        # pack adjacent small blocks
+        out, cur, cur_tok = [], [], 0
+        for n in blocks(root):
+            s, e = n.start_point[0], n.end_point[0] + 1
+            txt = b"\n".join(lines[s:e]).decode("utf-8","ignore")
+            t = self.approx_tokens(txt)
+            if cur_tok + t <= self.max_tokens:
+                cur.append((s,e,txt)); cur_tok += t
+            else:
+                if cur: out.append(cur); cur=[(s,e,txt)]; cur_tok = t
+        if cur: out.append(cur)
+
+        recs = []
+        for i, group in enumerate(out):
+            s, e = group[0][0], group[-1][1]            # merged span lines
+            text = "\n\n".join(x[2] for x in group)
+            cid = hashlib.md5(f"{path}:{i}:{text}".encode()).hexdigest()
+            recs.append((cid, text, {
+                "source_path": os.path.abspath(path),
+                "chunk_id": i,
+                "span": (s, e),                          # inclusive line range
+                "chunk_type": "semantic-code"
+            }))
+        return recs
