@@ -1,6 +1,6 @@
 ## models used
 
-* Qwen-emb 8b
+* ~~Qwen-emb 8b~~ Way too big -> going to 0.6B qwen-emb for embedding and chunking
 -> for embedding, written into a special class in chroma 
 /models/embedding/ -> model download
 /embedding/ -> embedding scripts
@@ -23,3 +23,5 @@ O(n·w) ->semanticChunker (default chunker)
 code -> structure-aware splitter (functions/classes) -> semantic merge.
 
 langchain_experemental.text_splitter.py -> line 203 > embed func to __call__ (native to our chroma class)
+
+searchmg -> search engine aggregator -> docker based?

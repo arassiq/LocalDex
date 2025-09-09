@@ -13,7 +13,7 @@ except ImportError as e:
     ) from e
 
 
-class QwenEmbeddingFunction(EmbeddingFunction[Documents]):
+class QwenEmbeddingFunction_8B(EmbeddingFunction[Documents]):
 
     def __init__(
         self,

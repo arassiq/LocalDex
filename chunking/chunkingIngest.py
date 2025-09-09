@@ -9,77 +9,84 @@ import chromadb
 from chromadb.config import Settings
 import re
 
-import hashlib
-
 from tree_sitter_language_pack import get_parser
 
-from embeddings import QwenEmbeddingFunction
+from embeddings import QwenEmbeddingFunction_8B
 
 from langchain_experimental.text_splitter import SemanticChunker
+from langchain_text_splitters import TokenTextSplitter
 
 import torch
-
-#import http.client
-
-with open("/Users/aaronrassiq/Desktop/LocalDex/chunking/text_samples/the_adventures_of_sherlock_holmes.txt") as f:
-    sherlockHolmes = f.read()
-
 
 class noteChunker:
     def __init__(
         self,
         ef: Union[object, None] = None,               # "balanced" | "high_recall" | "high_precision"
-        max_tokens: int = 450,
-        overlap: int = 60,
+        breakpoint_threshold_amount: float = 0.5,
+        buffer_size: int = 256,
+        add_start_index: bool = True,
+        bptype: str = "standard_deviation",
+        number_of_chunks: Union[int, None] = None,
+        sentence_split_regex: str = r"[.!?]\s+"
                  ) -> None:
         
-        if ef is None:
-            ef = QwenEmbeddingFunction(
+        self.ef = ef
+        self.buffer_size = buffer_size
+        self.add_start_index = add_start_index
+        self.breakpoint_threshold_amount = breakpoint_threshold_amount
+        self.bptype = bptype
+        self.number_of_chunks = number_of_chunks
+        self.sentence_split_regex = sentence_split_regex
+
+        if self.ef is None:
+            self.ef = QwenEmbeddingFunction_8B(
                 model_name="./models/embedding/qwen-emb",
                 device="mps",
-                model_kwargs={"torch_dtype": torch.float16}
+                model_kwargs={"torch_dtype": torch.float32},
             )
-        
-        min_tokens = max(150, max_tokens // 2)
-        
-        '''
-        self.bptype = "standard_deviation"
-        self.ef = ef
-        self.max_tokens = max_tokens
-        self.min_tokens = max(150, max_tokens // 2)
-        self.overlap = overlap
-        '''
-        
-        self.splitter = SemanticChunker( #good for now
-            embedding=ef,
-            min_chunk_size=min_tokens,
-            max_chunk_size=max_tokens,
-            overlap=overlap,
+
+        #min_tokens = max(150, self.max_tokens // 2)
+
+        self.splitter = SemanticChunker(
+            embeddings=self.ef,
+            buffer_size=self.buffer_size,
+            add_start_index=self.add_start_index,
             breakpoint_threshold_type=self.bptype,
+            breakpoint_threshold_amount=self.breakpoint_threshold_amount,
+            number_of_chunks=self.number_of_chunks,
+            sentence_split_regex=self.sentence_split_regex
         )
 
-    def id_maker(self, text_content):
-        return hashlib.md5(text_content.encode('utf-8')).hexdigest()
+    @staticmethod
+    def id_maker(text_content: str) -> str:
+        return hashlib.md5(text_content.encode("utf-8")).hexdigest()
 
     def __call__(self, path: str):
-        txt = re.sub(r'[ \t]+', ' ', txt)
-        txt = re.sub(r'\n{3,}', '\n\n', txt)
-        txt = txt.strip()
+        # Read and normalize text from disk
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            txt = f.read()
+        txt = re.sub(r"[ \t]+", " ", txt)
+        txt = re.sub(r"\n{3,}", "\n\n", txt).strip()
 
+        # Split into semantic chunks
         chunks = self.splitter.split_text(txt)
-        recs = []
-
+        recs: List[Tuple[str, str, Dict[str, Any]]] = []
+        abs_path = os.path.abspath(path)
         for i, ch in enumerate(chunks):
-
             text = ch
-            cid = hashlib.md5(f"{path}:{i}:{text}".encode()).hexdigest()
-            recs.append((cid, text, {
-                "source_path": os.path.abspath(path),
-                "chunk_id": i,
-                "span": None,                          # inclusive line range
-                "chunk_type": "semantic-text"
-            }))
-
+            cid = hashlib.md5(f"{abs_path}:{i}:{text}".encode()).hexdigest()
+            recs.append(
+                (
+                    cid,
+                    text,
+                    {
+                        "source_path": abs_path,
+                        "chunk_id": i,
+                        "span": None,  # inclusive line range (N/A for plain text)
+                        "chunk_type": "semantic-text",
+                    },
+                )
+            )
         return recs
 
 class codeChunker:
@@ -96,7 +103,9 @@ class codeChunker:
         self.max_tokens = max_tokens
         
 
-    def approx_tokens(s: str) -> int: return max(1, len(s)//4)
+    @staticmethod
+    def approx_tokens(s: str) -> int:
+        return max(1, len(s) // 4)
 
     def __call__(self, path: str):
         ext = os.path.splitext(path)[1].lower()
@@ -116,7 +125,6 @@ class codeChunker:
                     yield ch
                 yield from blocks(ch)
 
-        # pack adjacent small blocks
         out, cur, cur_tok = [], [], 0
         for n in blocks(root):
             s, e = n.start_point[0], n.end_point[0] + 1

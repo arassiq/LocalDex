@@ -12,6 +12,8 @@ accelerate
 
 langchain_exp
 
+langchain_text_splitters
+
 fastapi
 
 tree_sitter_language_pack
