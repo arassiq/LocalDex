@@ -1,7 +1,7 @@
-from .inProcess_EF import QwenEmbeddingFunction_8B
+from .inProcess_EF import QwenEmbeddingFunction_8B, QwenEmbeddingFunction_600M
 #from .remote_EF import RemoteEmbeddingFunction
 
 __all__ = [
     "QwenEmbeddingFunction_8B",
-    #"RemoteEmbeddingFunction",
+    "QwenEmbeddingFunction_600M",
 ]

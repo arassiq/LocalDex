@@ -1,13 +1,18 @@
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 from sentence_transformers import SentenceTransformer
 import torch
 import time
 
 torch.device("mps")
 
+#model = SentenceTransformer("Qwen/Qwen3-Embedding-0.6B")
+
 model = SentenceTransformer(
-    "/Users/aaronrassiq/Desktop/LocalLLM-RAG/qwen-emb",
+    "/Users/aaronrassiq/Desktop/LocalDex/models/embedding/qwen-emb-600M",
     device= "mps",
-    model_kwargs={"torch_dtype": torch.float16} #TODO: GOOD 
+    model_kwargs={"torch_dtype": torch.float32} #TODO: GOOD 
 )
 #    model_kwargs={"attn_implementation": "flash_attention_2", "device_map": "auto"}, #NO FLASH ATTENTION ON MPS 
 #    tokenizer_kwargs={"padding_side": "left"},
@@ -31,7 +36,7 @@ document_embeddings = model.encode(documents)
 
 # Compute the (cosine) similarity between the query and document embeddings
 similarity = model.similarity(query_embeddings, document_embeddings)
-print(similarity, similarity.size(), similarity.dtype())
+print(similarity, similarity.size())
 print(f"Time Taken: {time.time() - start}")
 # tensor([[0.7493, 0.0751], 
 #         [0.0880, 0.6318]])

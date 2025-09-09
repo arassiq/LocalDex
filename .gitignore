@@ -1,5 +1,11 @@
 /venv
 venv
 
-/models/embedding/qwen-emb
-models/embedding/qwen-emb
+/models/embedding/qwen-emb-8B
+models/embedding/qwen-emb-8B
+models/embedding/qwen-emb-600M
+/models/embedding/qwen-emb-600M
+
+
+.env
+/.env

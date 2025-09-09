@@ -7,11 +7,11 @@ from typing import Any, Dict, List, Sequence, Union, Tuple
 from pathlib import Path
 import chromadb
 from chromadb.config import Settings
-import re
+import re, unicodedata
 
 from tree_sitter_language_pack import get_parser
 
-from embeddings import QwenEmbeddingFunction_8B
+from embeddings import QwenEmbeddingFunction_600M
 
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_text_splitters import TokenTextSplitter
@@ -27,7 +27,7 @@ class noteChunker:
         add_start_index: bool = True,
         bptype: str = "standard_deviation",
         number_of_chunks: Union[int, None] = None,
-        sentence_split_regex: str = r"[.!?]\s+"
+        sentence_split_regex: str = r"(?<=[.!?])\s+|\n{2,}|\n[-*]\s+"
                  ) -> None:
         
         self.ef = ef
@@ -39,10 +39,10 @@ class noteChunker:
         self.sentence_split_regex = sentence_split_regex
 
         if self.ef is None:
-            self.ef = QwenEmbeddingFunction_8B(
-                model_name="./models/embedding/qwen-emb",
+            self.ef = QwenEmbeddingFunction_600M(
+                model_name="./models/embedding/qwen-emb-600M",
                 device="mps",
-                model_kwargs={"torch_dtype": torch.float32},
+                model_kwargs={"torch_dtype": torch.float32}, #32 preffered by mps, add option to change for cuda 
             )
 
         #min_tokens = max(150, self.max_tokens // 2)
@@ -57,6 +57,15 @@ class noteChunker:
             sentence_split_regex=self.sentence_split_regex
         )
 
+    def clean_text_for_chunking(self, txt: str) -> str:
+        txt = unicodedata.normalize("NFKC", txt).replace("\r\n", "\n").replace("\r", "\n")
+        txt = re.sub(r"[ \t]+", " ", txt)               # collapse spaces/tabs
+        txt = re.sub(r"\s+([.!?])", r"\1", txt)         # remove spaces BEFORE .?!  ("text ."=> "text.")
+        txt = re.sub(r"([.!?])([^\s\W])", r"\1 \2", txt)# ensure space AFTER .?! if next is word
+        txt = re.sub(r"\.{3,}", "...", txt)             # normalize ellipses
+        txt = re.sub(r"\n{3,}", "\n\n", txt)            # normalize big gaps to blank line
+        return txt.strip()
+
     @staticmethod
     def id_maker(text_content: str) -> str:
         return hashlib.md5(text_content.encode("utf-8")).hexdigest()
@@ -65,8 +74,8 @@ class noteChunker:
         # Read and normalize text from disk
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
             txt = f.read()
-        txt = re.sub(r"[ \t]+", " ", txt)
-        txt = re.sub(r"\n{3,}", "\n\n", txt).strip()
+
+        txt = self.clean_text_for_chunking(txt)
 
         # Split into semantic chunks
         chunks = self.splitter.split_text(txt)
