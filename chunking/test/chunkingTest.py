@@ -16,6 +16,7 @@ def testText():
     noteChunk = noteChunker()
 
     path = "/Users/aaronrassiq/Desktop/LocalDex/chunking/text_samples/the_adventures_of_sherlock_holmes.txt" 
+    
     recs = noteChunk.__call__(path)
     for rec in recs:
         print(rec,"\n\n\n\n\n")

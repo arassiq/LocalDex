@@ -72,6 +72,7 @@ class noteChunker:
 
     def __call__(self, path: str):
         # Read and normalize text from disk
+        #TODO: switch to be able to ingest a string 
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
             txt = f.read()
 
